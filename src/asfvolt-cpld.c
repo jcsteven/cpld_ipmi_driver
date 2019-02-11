@@ -31,6 +31,7 @@
 #include <linux/ipmi_smi.h>
 #include <linux/platform_device.h>
 
+
 #define DRVNAME "asfvolt_ipmi_cpld"
 #define ACCTON_IPMI_NETFN   0x34
 #define IPMI_CPLD_READ_CMD   0x1C
@@ -38,6 +39,23 @@
 #define IPMI_TIMEOUT		(20 * HZ)
 
 static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data);
+
+enum cpld_register_index {
+    CPLD_REGISTER_VERSION_INDEX,
+    CPLD_REGISTER_SYSTEM_RESET_1_INDEX,
+    CPLD_REGISTER_SYSTEM_RESET_2_INDEX,
+    CPLD_REGISTER_TX_DISABLE_1_INDEX,
+	CPLD_REGISTER_TX_DISABLE_2_INDEX,
+	CPLD_REGISTER_PON_PORT_GA_INDEX,
+	CPLD_REGISTER_PON_PORT_GB_INDEX,	
+    NUM_OF_CPLD_REGISTER
+};
+
+struct cpld_ipmi_cmd {
+	unsigned char    cpld_register_id;
+	unsigned char    cpld_ipmi_read_id;
+    unsigned char    cpld_ipmi_write_id;
+};
 
 
 struct ipmi_data {
@@ -209,16 +227,47 @@ static void __exit asfvolt_ipmi_cpld_exit(void)
     kfree(data);
 }
 
+static struct asfvolt_ipmi_cpld_data *read_asfvolt_ipmi_cpld_data(unsigned char cmd)
+{
+    int status = 0;
+
+    data->valid = 0;
+    status = ipmi_send_message(&data->ipmi, IPMI_CPLD_READ_CMD, NULL, 0,
+                                data->ipmi_resp, sizeof(data->ipmi_resp));
+    if (unlikely(status != 0)) {
+        goto exit;
+    }
+
+    if (unlikely(data->ipmi.rx_result != 0)) {
+        status = -EIO;
+        goto exit;
+    }
+
+    data->last_updated = jiffies;
+    data->valid = 1;
+
+exit:
+    return data;
+}
+
+
 int asxvolt16_cpld_read(unsigned short cpld_addr, u8 reg)
 {
 	int ret = -EIO;
 
 	mutex_lock(&data->update_lock);
+    data = read_asfvolt_ipmi_cpld_data(0x30);
+    if (!data->valid) {
+        ret = -EIO;
+        goto exit;
+    }
 
-    mutex_unlock(&data->update_lock);	
 
+exit:
+    mutex_unlock(&data->update_lock);
 	return ret;
 }
+
 EXPORT_SYMBOL(asxvolt16_cpld_read);
 
 int asxvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value)
