@@ -99,30 +99,30 @@ int main (int argc, char **argv)
            switch(result)
           {
                case '1':
-                   printf("option=1, optopt=%c, optarg=%s\n", optopt, optarg);
+                   //printf("option=1, optopt=%c, optarg=%s\n", optopt, optarg);
 				   opt_data.address=(unsigned char)strtol(optarg, NULL, 16); 				   
                    break;
               case '2':
-                   printf("option=2, optopt=%c, optarg=%s\n", optopt, optarg);
+                   //printf("option=2, optopt=%c, optarg=%s\n", optopt, optarg);
 				   opt_data.reg=(unsigned char)strtol(optarg, NULL, 16); 				   
                    break;
               case '3':
-                   printf("option=1, optopt=%c, optarg=%s\n", optopt, optarg);
+                   //printf("option=1, optopt=%c, optarg=%s\n", optopt, optarg);
 				   opt_data.value=(unsigned char)strtol(optarg, NULL, 16); 
                    break;
               case 'g':
-                    printf("result=g, optopt=%c, optarg=%s\n", optopt, optarg);
+                    //printf("result=g, optopt=%c, optarg=%s\n", optopt, optarg);
 					option=o_ioctl_get;
                     break;
               case 's':
-                    printf("result=s, optopt=%c, optarg=%s\n", optopt, optarg);
+                    //printf("result=s, optopt=%c, optarg=%s\n", optopt, optarg);
 					option=o_ioctl_set;
                     break;
 			default:
-                   printf("default, result=%c\n",result);
+                   //printf("default, result=%c\n",result);
                    break;
            }
-        printf("argv[%d]=%s\n", optind, argv[optind]);
+        //printf("argv[%d]=%s\n", optind, argv[optind]);
     }	  
 	  
   }	 
