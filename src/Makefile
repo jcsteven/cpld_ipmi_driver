@@ -1,7 +1,7 @@
 obj-m+=asfvolt-cpld.o
 obj-m+=asfvolt_dev.o
 #KDIR := /lib/modules/$(shell uname -r)/build
-KDIR := /home/voltha/Build-BAL2.6.1.3/OpenNetworkLinux/packages/base/amd64/kernels/kernel-4.14-lts-x86-64-all/builds/jessie/linux-4.14.49
+KDIR := ${HOME}/OpenNetworkLinux/packages/base/amd64/kernels/kernel-4.14-lts-x86-64-all/builds/jessie/linux-4.14.49
 PWD := $(shell pwd)
 
 # The remaineder of this Makefile is similar to a regular Makefile
