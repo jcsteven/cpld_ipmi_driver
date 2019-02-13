@@ -32,30 +32,15 @@
 #include <linux/platform_device.h>
 
 
-#define DRVNAME "asfvolt_ipmi_cpld"
+#define DRVNAME "asxvolt16_cpld"
 #define ACCTON_IPMI_NETFN   0x34
-#define IPMI_CPLD_READ_CMD   0x1C
-#define IPMI_CPLD_WRITE_CMD  0x1D
+#define IPMI_CPLD_READ_CMD   0x1E
+#define IPMI_CPLD_WRITE_CMD  0x1F
 #define IPMI_TIMEOUT		(20 * HZ)
 
 static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data);
-
-enum cpld_register_index {
-    CPLD_REGISTER_VERSION_INDEX,
-    CPLD_REGISTER_SYSTEM_RESET_1_INDEX,
-    CPLD_REGISTER_SYSTEM_RESET_2_INDEX,
-    CPLD_REGISTER_TX_DISABLE_1_INDEX,
-	CPLD_REGISTER_TX_DISABLE_2_INDEX,
-	CPLD_REGISTER_PON_PORT_GA_INDEX,
-	CPLD_REGISTER_PON_PORT_GB_INDEX,	
-    NUM_OF_CPLD_REGISTER
-};
-
-struct cpld_ipmi_cmd {
-	unsigned char    cpld_register_id;
-	unsigned char    cpld_ipmi_read_id;
-    unsigned char    cpld_ipmi_write_id;
-};
+static int asxvolt16_cpld_probe(struct platform_device *pdev);
+static int asxvolt16_cpld_remove(struct platform_device *pdev);
 
 
 struct ipmi_data {
@@ -75,17 +60,36 @@ struct ipmi_data {
 	struct ipmi_user_hndl ipmi_hndlrs;
 };
 
-struct asfvolt_ipmi_cpld_data {
-    struct platform_device *pdev;
-    struct mutex     update_lock;
-    char             valid;           /* != 0 if registers are valid */
-    unsigned long    last_updated;    /* In jiffies */
-    unsigned char    ipmi_resp[3]; /* 0: LOC LED, 1: DIAG Red LED, 2: DIAG Green LED */
-    struct ipmi_data ipmi;
+struct asxvolt16_cpld_data {
+	struct platform_device *pdev;
+	struct mutex     update_lock;
+	char             valid;           /* != 0 if registers are valid */
+	unsigned long    last_updated;    /* In jiffies */
+	unsigned char    ipmi_resp[1];    /* ipmi_resp[1] :
+	                                    1. When IPMI_CPLD_READ_CMD, return value of <offset of CPLD>
+	                                    2. Whem IPMI_CPLD_WRITE_CMD, the value is defined as:
+	                                            COMPCODE_NORMAL 0x00
+	                                       Or Error code:
+	                                            COMPCODE_TIMEOUT 0xC3 <= I2C Read/Write Timeout
+	                                            COMPCODE_NODE_BUSY 0xC0<= I2C Bus busy
+	                                            COMPCODE_PARAM_OUT_OF_RANGE 0xC9 <=  parameter out of range
+			                  */
+	struct ipmi_data ipmi;
+	unsigned char ipmi_rx_data[1];  /* ipmi_tx_data[1]: Whem IPMI_CPLD_READ_CMD, 0: cpld_offet */
+	unsigned char ipmi_tx_data[2];  /* ipmi_tx_data[2]: Whem IPMI_CPLD_WRITE_CMD, 0: cpld_offet, 1: value to write */
 };
 /* Functions to talk to the IPMI layer */
 
-struct asfvolt_ipmi_cpld_data *data = NULL;
+struct asxvolt16_cpld_data *data = NULL;
+
+static struct platform_driver asxvolt16_cpld_driver = {
+    .probe      = asxvolt16_cpld_probe,
+    .remove     = asxvolt16_cpld_remove,
+    .driver     = {
+        .name   = DRVNAME,
+        .owner  = THIS_MODULE,
+    },
+};
 
 /* Initialize IPMI address, message buffers and user data */
 static int init_ipmi_data(struct ipmi_data *ipmi, int iface,
@@ -105,7 +109,7 @@ static int init_ipmi_data(struct ipmi_data *ipmi, int iface,
 	ipmi->tx_msgid = 0;
 	ipmi->tx_message.netfn = ACCTON_IPMI_NETFN;
 
-    ipmi->ipmi_hndlrs.ipmi_recv_hndl = ipmi_msg_handler;
+	ipmi->ipmi_hndlrs.ipmi_recv_hndl = ipmi_msg_handler;
 
 	/* Create IPMI messaging interface user */
 	err = ipmi_create_user(ipmi->interface, &ipmi->ipmi_hndlrs,
@@ -126,11 +130,11 @@ static int ipmi_send_message(struct ipmi_data *ipmi, unsigned char cmd,
 {
 	int err;
 
-    ipmi->tx_message.cmd      = cmd;
-    ipmi->tx_message.data     = tx_data;
-    ipmi->tx_message.data_len = tx_len;
-    ipmi->rx_msg_data         = rx_data;
-    ipmi->rx_msg_len          = rx_len;
+	ipmi->tx_message.cmd      = cmd;
+	ipmi->tx_message.data     = tx_data;
+	ipmi->tx_message.data_len = tx_len;
+	ipmi->rx_msg_data         = rx_data;
+	ipmi->rx_msg_len          = rx_len;
 
 	err = ipmi_validate_addr(&ipmi->address, sizeof(ipmi->address));
 	if (err)
@@ -142,16 +146,16 @@ static int ipmi_send_message(struct ipmi_data *ipmi, unsigned char cmd,
 	if (err)
 		goto ipmi_req_err;
 
-    err = wait_for_completion_timeout(&ipmi->read_complete, IPMI_TIMEOUT);
+	err = wait_for_completion_timeout(&ipmi->read_complete, IPMI_TIMEOUT);
 	if (!err)
 		goto ipmi_timeout_err;
 
 	return 0;
 
 ipmi_timeout_err:
-    err = -ETIMEDOUT;
-    dev_err(&data->pdev->dev, "request_timeout=%x\n", err);
-    return err;
+	err = -ETIMEDOUT;
+	dev_err(&data->pdev->dev, "request_timeout=%x\n", err);
+	return err;
 ipmi_req_err:
 	dev_err(&data->pdev->dev, "request_settime=%x\n", err);
 	return err;
@@ -195,11 +199,106 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 }
 
 
-static int __init asfvolt_ipmi_cpld_init(void)
+static struct asxvolt16_cpld_data *asxvolt16_cpld_update_device(void)
+{
+	int status = 0;
+
+	if (time_before(jiffies, data->last_updated + HZ * 5) && data->valid) {
+		return data;
+	}
+	data->valid = 0;
+	status = ipmi_send_message(&data->ipmi, IPMI_CPLD_READ_CMD,data->ipmi_rx_data, sizeof(data->ipmi_rx_data),
+                                data->ipmi_resp, sizeof(data->ipmi_resp));
+	if (unlikely(status != 0)) {
+		goto exit;
+	}
+
+	if (unlikely(data->ipmi.rx_result != 0)) {
+		status = -EIO;
+		goto exit;
+	}
+
+	data->last_updated = jiffies;
+	data->valid = 1;
+
+exit:
+	return data;
+}
+
+int asxvolt16_cpld_read(unsigned short cpld_addr, u8 reg)
+{
+	int ret = -EIO;
+
+	mutex_lock(&data->update_lock);
+	if (cpld_addr!=0x62) {
+		ret = -EIO;
+		goto exit;
+	}
+
+	/* Send IPMI read command */
+	data->ipmi_rx_data[0] = reg;
+	data = asxvolt16_cpld_update_device();
+	if (!data->valid) {
+		ret = -EIO;
+		goto exit;
+	}
+	ret=(unsigned char)data->ipmi_resp[0];
+
+exit:
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+EXPORT_SYMBOL(asxvolt16_cpld_read);
+
+int asxvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value)
+{
+	int status = -EIO;
+
+	mutex_lock(&data->update_lock);
+
+	if (cpld_addr!=0x62) {
+		status = -EIO;
+		goto exit;
+	}
+
+	/* Send IPMI write command */
+	data->ipmi_tx_data[0] = reg;
+	data->ipmi_tx_data[1] = value;
+
+	status = ipmi_send_message(&data->ipmi, IPMI_CPLD_READ_CMD,data->ipmi_tx_data, sizeof(data->ipmi_tx_data),
+                                data->ipmi_resp, sizeof(data->ipmi_resp));
+	if (unlikely(status != 0)) {
+	}
+
+	if (unlikely(data->ipmi.rx_result != 0)) {
+		status = -EIO;
+		goto exit;
+	}
+	/* However the ipmi return the value, it is still errot if data->ipmi_resp[0] is not zero  */
+	status = data->ipmi_resp[0];
+
+exit:
+	mutex_unlock(&data->update_lock);
+	return status;
+}
+EXPORT_SYMBOL(asxvolt16_cpld_write);
+
+static int asxvolt16_cpld_probe(struct platform_device *pdev)
+{
+    dev_info(&pdev->dev, "device created\n");
+    return 0;
+}
+
+static int asxvolt16_cpld_remove(struct platform_device *pdev)
+{
+    return 0;
+}
+
+static int __init asxvolt16_cpld_init(void)
 {
     int ret;
 
-    data = kzalloc(sizeof(struct asfvolt_ipmi_cpld_data), GFP_KERNEL);
+    data = kzalloc(sizeof(struct asxvolt16_cpld_data), GFP_KERNEL);
     if (!data) {
         ret = -ENOMEM;
         goto alloc_err;
@@ -208,6 +307,17 @@ static int __init asfvolt_ipmi_cpld_init(void)
 	mutex_init(&data->update_lock);
     data->valid = 0;
 
+    ret = platform_driver_register(&asxvolt16_cpld_driver);
+    if (ret < 0) {
+        goto dri_reg_err;
+    }
+
+    data->pdev = platform_device_register_simple(DRVNAME, -1, NULL, 0);
+    if (IS_ERR(data->pdev)) {
+        ret = PTR_ERR(data->pdev);
+        goto dev_reg_err;
+    }
+		
 	/* Set up IPMI interface */
 	ret = init_ipmi_data(&data->ipmi, 0, &data->pdev->dev);
 	if (ret)
@@ -216,78 +326,28 @@ static int __init asfvolt_ipmi_cpld_init(void)
     return 0;
 
 ipmi_err:
-   kfree(data);
+    platform_device_unregister(data->pdev);
+dev_reg_err:
+    platform_driver_unregister(&asxvolt16_cpld_driver);
+dri_reg_err:
+    kfree(data);
 alloc_err:
     return ret;
 }
 
-static void __exit asfvolt_ipmi_cpld_exit(void)
+static void __exit asxvolt16_cpld_exit(void)
 {
     ipmi_destroy_user(data->ipmi.user);
+    platform_device_unregister(data->pdev);
+    platform_driver_unregister(&asxvolt16_cpld_driver);
     kfree(data);
 }
 
-static struct asfvolt_ipmi_cpld_data *read_asfvolt_ipmi_cpld_data(unsigned char cmd)
-{
-    int status = 0;
-
-    data->valid = 0;
-    status = ipmi_send_message(&data->ipmi, IPMI_CPLD_READ_CMD, NULL, 0,
-                                data->ipmi_resp, sizeof(data->ipmi_resp));
-    if (unlikely(status != 0)) {
-        goto exit;
-    }
-
-    if (unlikely(data->ipmi.rx_result != 0)) {
-        status = -EIO;
-        goto exit;
-    }
-
-    data->last_updated = jiffies;
-    data->valid = 1;
-
-exit:
-    return data;
-}
-
-
-int asxvolt16_cpld_read(unsigned short cpld_addr, u8 reg)
-{
-	int ret = -EIO;
-
-	mutex_lock(&data->update_lock);
-    data = read_asfvolt_ipmi_cpld_data(0x30);
-    if (!data->valid) {
-        ret = -EIO;
-        goto exit;
-    }
-
-
-exit:
-    mutex_unlock(&data->update_lock);
-	return ret;
-}
-
-EXPORT_SYMBOL(asxvolt16_cpld_read);
-
-int asxvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value)
-{
-
-	int ret = -EIO;
-	
-	mutex_lock(&data->update_lock);
-
-    mutex_unlock(&data->update_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(asxvolt16_cpld_write);
-
 
 MODULE_AUTHOR("JC Yu <jcyu@edge-core.com>");
-MODULE_DESCRIPTION("ASXVOLT IPMI CPLD2 driver");
+MODULE_DESCRIPTION("ASXVOLT CPLD2 driver through IPMI");
 MODULE_LICENSE("GPL");
 
-module_init(asfvolt_ipmi_cpld_init);
-module_exit(asfvolt_ipmi_cpld_exit);
+module_init(asxvolt16_cpld_init);
+module_exit(asxvolt16_cpld_exit);
 
