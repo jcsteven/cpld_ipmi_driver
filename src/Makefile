@@ -1,4 +1,4 @@
-obj-m+=asfvolt-cpld.o
+obj-m+=asxvolt16-cpld.o
 obj-m+=asfvolt_dev.o
 #KDIR := /lib/modules/$(shell uname -r)/build
 KDIR := ${HOME}/OpenNetworkLinux/packages/base/amd64/kernels/kernel-4.14-lts-x86-64-all/builds/jessie/linux-4.14.49
@@ -14,7 +14,7 @@ PWD := $(shell pwd)
 
 all:
 	make -C $(KDIR) M=$(PWD) modules
-	$(CC) test_cpld.c -o test_cpld	
+	$(CC) test_cpld.c -o test_cpld
 clean:
 	make -C $(KDIR) M=$(PWD) clean
 	rm -f test_cpld
