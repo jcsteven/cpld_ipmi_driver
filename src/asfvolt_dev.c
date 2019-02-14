@@ -9,8 +9,8 @@
 #include <linux/uaccess.h>
 #include "asfvolt_dev.h"
 
-extern int asxvolt16_cpld_read(unsigned short cpld_addr, u8 reg);
-extern int asxvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value);
+extern int asfvolt16_cpld_read(unsigned short cpld_addr, u8 reg);
+extern int asfvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value);
 
 /* uncomment the next line to enable debug output to the kernel CLI */
 #define ASFVOLT_DEV_DEBUG_PRINTS 1
@@ -68,10 +68,10 @@ static long dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
                 return -EACCES;
             }
             print_cpld_Data("Reciving",&dev_data);
-            status = asxvolt16_cpld_read(dev_data.address,dev_data.reg);
+            status = asfvolt16_cpld_read(dev_data.address,dev_data.reg);
             if (status < 0)
             {
-                printk(KERN_ERR "%s:%i-Error: Fail to asxvolt16_cpld_read\n", __FUNCTION__,__LINE__);
+                printk(KERN_ERR "%s:%i-Error: Fail to asfvolt16_cpld_read\n", __FUNCTION__,__LINE__);
                 return status;
             }
             dev_data.value=( unsigned char)status;
@@ -89,10 +89,10 @@ static long dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
                 return -EACCES;
             }
             print_cpld_Data("Reciving",&dev_data);
-            status=asxvolt16_cpld_write(dev_data.address,dev_data.reg, dev_data.value);
+            status=asfvolt16_cpld_write(dev_data.address,dev_data.reg, dev_data.value);
             if (status < 0)
             {
-                printk(KERN_ERR "%s:%i-Error: Fail to asxvolt16_cpld_write\n", __FUNCTION__,__LINE__);
+                printk(KERN_ERR "%s:%i-Error: Fail to asfvolt16_cpld_write\n", __FUNCTION__,__LINE__);
                 return status;
             }
 

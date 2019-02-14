@@ -32,15 +32,15 @@
 #include <linux/platform_device.h>
 
 
-#define DRVNAME "asxvolt16_cpld"
+#define DRVNAME "asfvolt16_cpld"
 #define ACCTON_IPMI_NETFN   0x34
 #define IPMI_CPLD_READ_CMD   0x1E
 #define IPMI_CPLD_WRITE_CMD  0x1F
 #define IPMI_TIMEOUT		(20 * HZ)
 
 static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data);
-static int asxvolt16_cpld_probe(struct platform_device *pdev);
-static int asxvolt16_cpld_remove(struct platform_device *pdev);
+static int asfvolt16_cpld_probe(struct platform_device *pdev);
+static int asfvolt16_cpld_remove(struct platform_device *pdev);
 
 
 struct ipmi_data {
@@ -60,7 +60,7 @@ struct ipmi_data {
 	struct ipmi_user_hndl ipmi_hndlrs;
 };
 
-struct asxvolt16_cpld_data {
+struct asfvolt16_cpld_data {
 	struct platform_device *pdev;
 	struct mutex     update_lock;
 	char             valid;           /* != 0 if registers are valid */
@@ -80,11 +80,11 @@ struct asxvolt16_cpld_data {
 };
 /* Functions to talk to the IPMI layer */
 
-struct asxvolt16_cpld_data *data = NULL;
+struct asfvolt16_cpld_data *data = NULL;
 
-static struct platform_driver asxvolt16_cpld_driver = {
-    .probe      = asxvolt16_cpld_probe,
-    .remove     = asxvolt16_cpld_remove,
+static struct platform_driver asfvolt16_cpld_driver = {
+    .probe      = asfvolt16_cpld_probe,
+    .remove     = asfvolt16_cpld_remove,
     .driver     = {
         .name   = DRVNAME,
         .owner  = THIS_MODULE,
@@ -199,7 +199,7 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 }
 
 
-static struct asxvolt16_cpld_data *asxvolt16_cpld_update_device(void)
+static struct asfvolt16_cpld_data *asfvolt16_cpld_update_device(void)
 {
 	int status = 0;
 
@@ -225,7 +225,7 @@ exit:
 	return data;
 }
 
-int asxvolt16_cpld_read(unsigned short cpld_addr, u8 reg)
+int asfvolt16_cpld_read(unsigned short cpld_addr, u8 reg)
 {
 	int ret = -EIO;
 
@@ -237,7 +237,7 @@ int asxvolt16_cpld_read(unsigned short cpld_addr, u8 reg)
 
 	/* Send IPMI read command */
 	data->ipmi_rx_data[0] = reg;
-	data = asxvolt16_cpld_update_device();
+	data = asfvolt16_cpld_update_device();
 	if (!data->valid) {
 		ret = -EIO;
 		goto exit;
@@ -248,9 +248,9 @@ exit:
 	mutex_unlock(&data->update_lock);
 	return ret;
 }
-EXPORT_SYMBOL(asxvolt16_cpld_read);
+EXPORT_SYMBOL(asfvolt16_cpld_read);
 
-int asxvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value)
+int asfvolt16_cpld_write(unsigned short cpld_addr, u8 reg, u8 value)
 {
 	int status = -EIO;
 
@@ -281,24 +281,24 @@ exit:
 	mutex_unlock(&data->update_lock);
 	return status;
 }
-EXPORT_SYMBOL(asxvolt16_cpld_write);
+EXPORT_SYMBOL(asfvolt16_cpld_write);
 
-static int asxvolt16_cpld_probe(struct platform_device *pdev)
+static int asfvolt16_cpld_probe(struct platform_device *pdev)
 {
     dev_info(&pdev->dev, "device created\n");
     return 0;
 }
 
-static int asxvolt16_cpld_remove(struct platform_device *pdev)
+static int asfvolt16_cpld_remove(struct platform_device *pdev)
 {
     return 0;
 }
 
-static int __init asxvolt16_cpld_init(void)
+static int __init asfvolt16_cpld_init(void)
 {
     int ret;
 
-    data = kzalloc(sizeof(struct asxvolt16_cpld_data), GFP_KERNEL);
+    data = kzalloc(sizeof(struct asfvolt16_cpld_data), GFP_KERNEL);
     if (!data) {
         ret = -ENOMEM;
         goto alloc_err;
@@ -307,7 +307,7 @@ static int __init asxvolt16_cpld_init(void)
 	mutex_init(&data->update_lock);
     data->valid = 0;
 
-    ret = platform_driver_register(&asxvolt16_cpld_driver);
+    ret = platform_driver_register(&asfvolt16_cpld_driver);
     if (ret < 0) {
         goto dri_reg_err;
     }
@@ -328,18 +328,18 @@ static int __init asxvolt16_cpld_init(void)
 ipmi_err:
     platform_device_unregister(data->pdev);
 dev_reg_err:
-    platform_driver_unregister(&asxvolt16_cpld_driver);
+    platform_driver_unregister(&asfvolt16_cpld_driver);
 dri_reg_err:
     kfree(data);
 alloc_err:
     return ret;
 }
 
-static void __exit asxvolt16_cpld_exit(void)
+static void __exit asfvolt16_cpld_exit(void)
 {
     ipmi_destroy_user(data->ipmi.user);
     platform_device_unregister(data->pdev);
-    platform_driver_unregister(&asxvolt16_cpld_driver);
+    platform_driver_unregister(&asfvolt16_cpld_driver);
     kfree(data);
 }
 
@@ -348,6 +348,6 @@ MODULE_AUTHOR("JC Yu <jcyu@edge-core.com>");
 MODULE_DESCRIPTION("ASXVOLT CPLD2 driver through IPMI");
 MODULE_LICENSE("GPL");
 
-module_init(asxvolt16_cpld_init);
-module_exit(asxvolt16_cpld_exit);
+module_init(asfvolt16_cpld_init);
+module_exit(asfvolt16_cpld_exit);
 
