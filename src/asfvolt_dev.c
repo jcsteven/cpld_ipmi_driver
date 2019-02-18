@@ -67,7 +67,7 @@ static long dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
                 printk(KERN_ERR "%s:%i-Error: Fail to copy_from_user\n", __FUNCTION__,__LINE__);
                 return -EACCES;
             }
-            print_cpld_Data("Reciving",&dev_data);
+            print_cpld_Data("Reciving(Get Cmd)",&dev_data);
             status = asxvolt16_cpld_read(dev_data.address,dev_data.reg);
             if (status < 0)
             {
@@ -88,7 +88,7 @@ static long dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
                 printk(KERN_ERR "%s:%i-Error: Fail to copy_from_user\n", __FUNCTION__,__LINE__);
                 return -EACCES;
             }
-            print_cpld_Data("Reciving",&dev_data);
+            print_cpld_Data("Reciving(Set Cmd)",&dev_data);
             status=asxvolt16_cpld_write(dev_data.address,dev_data.reg, dev_data.value);
             if (status < 0)
             {

@@ -18,15 +18,16 @@ void get_cpld_data(int fd,cpld_data_arg_t *pdata)
     cpld_data_arg_t data;
     data.address=pdata->address;
     data.reg=pdata->reg;
+    data.value=pdata->value;
     if (ioctl(fd, CPLD_DATA_GET_VARIABLES, &data) == -1)
     {
         printf(" Fail to get_cpld_data !!");
     }
     else
     {
-        printf("OK to get_cpld_data !!\n");
+        printf("OK to get_cpld_data: %02X\n",data.value);
 		pdata->value=data.value;
-		show_cpld_Data(pdata);
+		//show_cpld_Data(pdata);
     }
 }
 
@@ -35,15 +36,15 @@ void set_cpld_data(int fd,cpld_data_arg_t *pdata)
     cpld_data_arg_t data;
     data.address=pdata->address;
     data.reg=pdata->reg;	
-	data.value=pdata->value;	
+    data.value=pdata->value;	
     if (ioctl(fd, CPLD_DATA_SET_VARIABLES, &data) == -1)
     {
         printf(" Fail to set_cpld_data !!");
     }
     else
     {
-        printf("OK to set_cpld_data !!\n");
-		show_cpld_Data(&data);
+        printf("OK to set_cpld_data: %02X\n",data.value);
+		//show_cpld_Data(&data);
 		memcpy(pdata,&data,sizeof(cpld_data_arg_t));
     }
 }
@@ -127,8 +128,8 @@ int main (int argc, char **argv)
 	  
   }	 
 
-  printf("Show before call commmand: option: %d\n",option); 
-  show_cpld_Data(&opt_data);
+  //printf("Show before call commmand: option: %d\n",option); 
+  //show_cpld_Data(&opt_data);
   
   fd = open(file_name, O_RDWR);
   if (fd == -1)
@@ -141,6 +142,7 @@ int main (int argc, char **argv)
   switch (option)
   {
 	case o_ioctl_get:
+            opt_data.value=0x00;
             get_cpld_data(fd,&opt_data);
             break;
 	case o_ioctl_set:
